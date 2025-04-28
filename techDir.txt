@@ -1,0 +1,3 @@
+/home/tools/cadence/gpdk/gsclib045_all_v4.4/lan/flow/t1u1/reference_libs/GPDK045
+/home/tools/cadence/gpdk/gsclib045_svt_v4.4/lan/flow/t1u1/reference_libs/GPDK045/gsclib045_svt_v4.4/gsclib045
+/home/tools/cadence/gpdk/gpdk045_v_6_0

@@ -1,0 +1,290 @@
+loadtechDir() {
+
+    echo "wait for primary configurations..."
+
+    TECH_DIR=$(find /home/tools -type d -path "*/gsclib045_all_v4.4/gsclib045/verilog" 2>&1 | grep -v "Permission denied" | head -n 1 | sed "s/\/gsclib045_all_v4.4\/gsclib045\/verilog//")
+    TECH_DIR_GSC=$(find /home/tools -type d -path "*/gsclib045_svt_v4.4/gsclib045" 2>&1 | grep -v "Permission denied" | head -n 1)
+    TECH_DIR_GPDK=$(find /home/tools -type d -path "*/gpdk045_v_6_0" 2>&1 | grep -v "Permission denied" | head -n 1)
+    echo "$TECH_DIR" > "$varFile"
+    echo "$TECH_DIR_GSC" >> "$varFile"
+    echo "$TECH_DIR_GPDK" >> "$varFile"
+
+    if [ "$TECH_DIR" = "" ] || [ "$TECH_DIR_GSC" = "" ] || [ "$TECH_DIR_GPDK" = "" ]; then
+        echo "libraries not founded"
+        exit
+    fi
+
+    echo
+    echo "configurations complete"
+}
+
+
+varFile="techDir.txt"
+
+
+
+if [ -e "$varFile" ]; then
+    TECH_DIR=$(grep "gsclib045_all_v4.4" "$varFile")
+    TECH_DIR_GSC=$(grep "gsclib045_svt_v4.4" "$varFile")
+    TECH_DIR_GPDK=$(grep "gpdk045_v_6_0" "$varFile")
+
+    if [ ! -d "$TECH_DIR" ] || [ ! -d "$TECH_DIR_GSC" ] || [ ! -d "$TECH_DIR_GPDK" ] || \
+    [ "$TECH_DIR" = "" ] || [ "$TECH_DIR_GSC" = "" ] || [ "$TECH_DIR_GPDK" = "" ]; then
+        loadtechDir
+    fi
+else
+    loadtechDir
+fi
+
+export PROJECT_DIR=$(pwd)
+export DESIGNS=$(basename $PROJECT_DIR)
+export BACKEND_DIR=${PROJECT_DIR}/backend
+export TECH_DIR=$TECH_DIR
+export TECH_DIR_GSC=$TECH_DIR_GSC
+export TECH_DIR_GPDK=$TECH_DIR_GPDK
+export HDL_NAME=${DESIGNS}
+export VLOG_LIST="$BACKEND_DIR/synthesis/deliverables/${DESIGNS}.v  $BACKEND_DIR/synthesis/deliverables/${DESIGNS}_io.v  $BACKEND_DIR/synthesis/deliverables/${DESIGNS}_chip.v"
+
+
+echo
+
+while true; do
+    echo "Which frequency you want to use (MHz)?"
+    read FREQ
+    echo
+
+    if [ "$FREQ" = "" ]; then
+        FREQ=10
+        break
+    fi
+
+    if [[ "$FREQ" =~ ^[0-9]+$ ]]; then
+        break
+    else
+        echo "chose a number value"
+    fi
+done
+
+echo "The clock frequency was defined as: $FREQ MHz"
+
+FREQ=$(expr $FREQ \* 1000000)
+
+period_clk=$((1000000000 / $FREQ))
+
+export period_clk=$period_clk
+
+echo "The clock period was defined as: $period_clk ns"
+echo
+
+while true; do
+
+    echo "Which software you want to run? [(x)celium, (g)enus, (i)nnovus]"
+    read software
+
+    if [ "$software" = "" ]; then
+        software="x"
+    fi
+
+    values=("x" "g" "i" "")
+
+    for value in "${values[@]}"; do
+        if [ "$software" = "$value" ]; then
+            break
+        fi
+    done
+
+    if [ "$software" = "$value" ]; then
+        break
+    fi
+
+    echo "chose one of the options"
+done
+
+# loading modules
+#module add cdn/genus/genus211 		;# GENUS
+#module add cdn/xcelium/xcelium2409 	;# XCELIUM
+#module add cdn/innovus/innovus211 	;# INNOVUS
+#module add cdn/ic/ic231 		;# VIRTUOSO
+#module add cdn/assura/assura41		;# ASSURA
+
+if [ "$software" = "x" ]; then
+    # Para executar o XCELIUM
+    cd ${PROJECT_DIR}/frontend/work
+
+    echo
+    echo "Which vector do you want to run? (p)rop, (o)fficial"
+    read vector
+
+    if [ "$vector" = "p" ]; then
+        PROP=1
+        Nlins=$(grep -c '[^[:space:]]' ../vetor_property.txt)
+        vector="\"../vetor_property.txt\""
+    elif [ "$vector" = "o" ] || [ "$vector" = "" ]; then 
+        PROP=0
+        Nlins=$(grep -c '[^[:space:]]' ../vetor.txt)
+        vector="\"../vetor.txt\""
+    fi
+	
+	if [ "$PROP" != "n" ]; then
+        echo
+        echo "The archive have $Nlins lines"
+
+        echo
+        echo "Run all? (y) or (n) (generate all vcds)"
+        read run
+
+        if [ "$run" = "y" ]; then
+            for DOUBLE in 0 1; do
+                xrun -overwrite -64bit -v200x -v93 ../${DESIGNS}.sv \
+                +define+FREQ=${FREQ} +define+DOUBLE=${DOUBLE} +define+MODE=\"_rtl\" \
+                +define+PROP=${PROP} +define+Nlins=${Nlins} +define+vector=${vector} \
+                ../${DESIGNS}_tb.sv -top ${DESIGNS}_tb -access +rwc \
+                > /dev/null
+
+                xrun -overwrite -timescale 1ns/10ps -64bit -v200x -v93 ${TECH_DIR}/gsclib045_all_v4.4/gsclib045/verilog/slow_vdd1v0_basicCells.v \
+                ${PROJECT_DIR}/backend/synthesis/deliverables/${DESIGNS}_${period_clk}ns.v \
+                +define+FREQ=${FREQ} +define+DOUBLE=${DOUBLE} +define+MODE=\"_synth\" \
+                +define+PROP=${PROP} +define+Nlins=${Nlins} +define+vector=${vector} ../${DESIGNS}_tb.sv \
+                -top ${DESIGNS}_tb -access +rwc \
+                > /dev/null
+
+                xmsdfc -iocondsort -compile ${PROJECT_DIR}/backend/synthesis/deliverables/${DESIGNS}_${period_clk}ns_worst.sdf \
+                & xrun -overwrite -timescale 1ns/10ps -mess -64bit -v200x -v93 \
+                ${TECH_DIR}/gsclib045_all_v4.4/gsclib045/verilog/slow_vdd1v0_basicCells.v \
+                ${PROJECT_DIR}/backend/synthesis/deliverables/${DESIGNS}_${period_clk}ns.v \
+                +define+FREQ=${FREQ} +define+DOUBLE=${DOUBLE} +define+MODE=\"_synth_sdf\" \
+                +define+PROP=${PROP} +define+Nlins=${Nlins} +define+vector=${vector} ../${DESIGNS}_tb.sv \
+                -top ${DESIGNS}_tb -access +rwc -sdf_cmd_file \
+                ${PROJECT_DIR}/frontend/sdf_cmd_file_worst.cmd \
+                > /dev/null
+
+                xmsdfc -iocondsort -compile ${PROJECT_DIR}/backend/layout/deliverables/${DESIGNS}_${period_clk}ns_layout.sdf \
+                & xrun -overwrite -timescale 1ns/10ps -mess -64bit -v200x -v93 \
+                ${TECH_DIR}/gsclib045_all_v4.4/gsclib045/verilog/slow_vdd1v0_basicCells.v \
+                ${PROJECT_DIR}/backend/layout/deliverables/${DESIGNS}_layout_${period_clk}ns.v \
+                +define+FREQ=${FREQ} +define+DOUBLE=${DOUBLE} +define+MODE=\"_layout_sdf\" \
+                +define+PROP=${PROP} +define+Nlins=${Nlins} +define+vector=${vector} ../${DESIGNS}_tb.sv \
+                -top ${DESIGNS}_tb -access +rwc -sdf_cmd_file \
+                ${PROJECT_DIR}/frontend/sdf_cmd_file_layout.cmd \
+                > /dev/null
+
+            done
+
+            exit
+        fi
+    fi
+
+    echo "Do you want to run (f)ull time or (a)ctive time?"
+    read time
+
+    if [ "$time" = "a" ]; then
+        DOUBLE=0
+    else
+        DOUBLE=1
+    fi
+
+    echo
+    echo "Do you want to run: [(r)tl, (s)ynthesis, synthesis (w)ith sdf, (l)ayout with sdf]"
+    read mode
+
+    if [ "$mode" = "" ]; then
+        mode="r"
+    fi
+
+    echo
+    echo "Do you want to run with gui? (y) or (n)"
+    read y
+
+    if [ "$y" = "n" ]; then
+        gui=""
+    else
+        gui="-gui"
+    fi
+
+    echo
+    echo "xcelium will run now"
+
+    xrun -clean 
+
+    ### run HDL
+    if [ "$mode" = "r" ]; then
+        xrun -overwrite -64bit -v200x -v93 ../${DESIGNS}.sv \
+        +define+FREQ=${FREQ} +define+DOUBLE=${DOUBLE} +define+MODE=\"_rtl\" \
+        +define+PROP=${PROP} +define+Nlins=${Nlins} +define+vector=${vector} \
+        ../${DESIGNS}_tb.sv -top ${DESIGNS}_tb -access +rwc $gui 
+        
+    fi
+
+    ### run netlist (logic synthesis)
+    if [ "$mode" = "s" ]; then
+        xrun -overwrite -timescale 1ns/10ps -64bit -v200x -v93 ${TECH_DIR}/gsclib045_all_v4.4/gsclib045/verilog/slow_vdd1v0_basicCells.v \
+        ${PROJECT_DIR}/backend/synthesis/deliverables/${DESIGNS}_${period_clk}ns.v \
+        +define+FREQ=${FREQ} +define+DOUBLE=${DOUBLE} +define+MODE=\"_synth\" \
+        +define+PROP=${PROP} +define+Nlins=${Nlins} +define+vector=${vector} ../${DESIGNS}_tb.sv \
+        -top ${DESIGNS}_tb -access +rwc $gui 
+
+    fi
+    
+    ### run netlist (logic syntesis) with compiled SDF 
+    if [ "$mode" = "w" ]; then
+        xmsdfc -iocondsort -compile ${PROJECT_DIR}/backend/synthesis/deliverables/${DESIGNS}_${period_clk}ns_worst.sdf \
+        & xrun -overwrite -timescale 1ns/10ps -mess -64bit -v200x -v93 \
+        ${TECH_DIR}/gsclib045_all_v4.4/gsclib045/verilog/slow_vdd1v0_basicCells.v \
+        ${PROJECT_DIR}/backend/synthesis/deliverables/${DESIGNS}_${period_clk}ns.v \
+        +define+FREQ=${FREQ} +define+DOUBLE=${DOUBLE} +define+MODE=\"_synth_sdf\" \
+        +define+PROP=${PROP} +define+Nlins=${Nlins} +define+vector=${vector} ../${DESIGNS}_tb.sv \
+        -top ${DESIGNS}_tb -access +rwc -sdf_cmd_file \
+        ${PROJECT_DIR}/frontend/sdf_cmd_file_worst.cmd $gui 
+
+    fi
+
+    ### run netlist (physical syntesis) with compiled SDF 
+    if [ "$mode" = "l" ]; then
+        xmsdfc -iocondsort -compile ${PROJECT_DIR}/backend/layout/deliverables/${DESIGNS}_${period_clk}ns_layout.sdf \
+        & xrun -overwrite -timescale 1ns/10ps -mess -64bit -v200x -v93 \
+        ${TECH_DIR}/gsclib045_all_v4.4/gsclib045/verilog/slow_vdd1v0_basicCells.v \
+        ${PROJECT_DIR}/backend/layout/deliverables/${DESIGNS}_layout_${period_clk}ns.v \
+        +define+FREQ=${FREQ} +define+DOUBLE=${DOUBLE} +define+MODE=\"_layout_sdf\" \
+        +define+PROP=${PROP} +define+Nlins=${Nlins} +define+vector=${vector} ../${DESIGNS}_tb.sv \
+        -top ${DESIGNS}_tb -access +rwc -sdf_cmd_file \
+        ${PROJECT_DIR}/frontend/sdf_cmd_file_layout.cmd $gui 
+
+    fi
+
+fi
+
+if [ "$software" = "g" ]; then
+    #echo "Do you want to run: [rtl, synthesis, synthesis with sdf]"
+    #read mode
+
+    echo "run genus with dft? [n]"
+    read dft
+
+    echo "genus will run now"
+
+    # Para executar o GENUS
+    cd ${PROJECT_DIR}/backend/synthesis/work
+
+    if [ "$dft" = "y" ]; then
+        export DFT="false"
+        genus -abort_on_error -lic_startup Genus_Synthesis -lic_startup_options Genus_Physical_Opt -log genus \
+        -overwrite -files ${PROJECT_DIR}/backend/synthesis/scripts/genus_dft.tcl 
+    else
+        export DFT="true"
+        ## apenas o programa
+        #genus -abort_on_error -lic_startup Genus_Synthesis -lic_startup_options Genus_Physical_Opt -log genus -overwrite
+        # programa e carrega script para síntese automatizada
+        genus -abort_on_error -lic_startup Genus_Synthesis -lic_startup_options Genus_Physical_Opt -log genus \
+        -overwrite -files ${PROJECT_DIR}/backend/synthesis/scripts/genus.tcl 
+    fi
+fi
+
+if [ "$software" = "i" ]; then
+    echo "innovus will run now"
+    # Para executar o INNOVUS
+    cd ${PROJECT_DIR}/backend/layout/work
+    ## apenas o programa
+    #innovus
+    innovus -stylus -overwrite -files ${PROJECT_DIR}/backend/layout/scripts/layout.tcl
+
+fi
