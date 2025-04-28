@@ -1,0 +1,25 @@
+-- Last update: June 5th 2024 by Leonardo Londero de Oliveira
+
+-- Standard CADENCE libraries (tool dependent)
+
+DEFINE basic $CDSHOME/tools/dfII/etc/cdslib/basic
+DEFINE analogLib $CDSHOME/tools/dfII/etc/cdslib/artist/analogLib
+DEFINE sbaLib $CDSHOME/tools/dfII/etc/cdslib/artist/sbaLib
+DEFINE sample $CDSHOME/tools/dfII/samples/cdslib/sample
+DEFINE US_8ths $CDSHOME/tools/dfII/etc/cdslib/sheets/US_8ths
+DEFINE avTech $ASSURAHOME/tools/assura/etc/avtech/avTech
+DEFINE cdsDefTechLib $CDSHOME/tools/dfII/etc/cdsDefTechLib
+DEFINE ahdlLib $CDSHOME/tools/dfII/samples/artist/ahdlLib
+DEFINE functional $CDSHOME/tools/dfII/etc/cdslib/artist/functional
+
+
+-- Tech Libs (vendor dependent)
+
+DEFINE gpdk045 $TECH_DIR/gpdk045_v_6_0/gpdk045
+SOFTINCLUDE $TECH_DIR/gsclib045_all_v4.4/cds.lib
+SOFTINCLUDE $TECH_DIR/giolib045_v3.3/cds.lib
+DEFINE gpdk045_av ./assura
+
+
+-- Custom digital libraries
+

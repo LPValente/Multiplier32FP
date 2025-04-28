@@ -1,0 +1,30 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; GPDK045 Assura Rule Set File 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+ruleSet( "default"
+     (DrcRules             "./assuraDRC.rul" )
+     (DrcTemplateFile      "./.drc_setup.tpl" )
+     (LvsExtractRules      "./extract.rul" )
+     (LvsCompareRules      "./compare.rul" )
+     (LvsInclude           "./LVSinclude.rsf" )
+     (LvsTemplateFile      "./.lvs_setup.tpl" )
+     (LvsAVCTemplateFile   "./.avc_setup.tpl" )
+     (RcxSetupDir          "../qrc" )
+     (RcxTemplateFile      "./.rcx_setup.tpl" )
+)
+
+ruleSet( "fill"
+     (DrcRules             "./assuraFillMetal.rul" )
+     (DrcInclude           "./fill.rsf" )
+)
+
+ruleSet( "rcx_typical"
+       (RcxSetupDir          "../qrc/typical" )
+)
+ruleSet( "rcx_worst"
+       (RcxSetupDir          "../qrc/worst" )
+)
+ruleSet( "rcx_best"
+       (RcxSetupDir          "../qrc/best" )
+)

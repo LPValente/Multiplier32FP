@@ -1,0 +1,9 @@
+xrun(64): 24.09-s001: (c) Copyright 1995-2024 Cadence Design Systems, Inc.
+TOOL:	xrun(64)	24.09-s001: Started on Feb 06, 2025 at 12:17:37 -03
+xrun
+	-compile
+	../deliverables/multiplier32FP.v
+file: ../deliverables/multiplier32FP.v
+	module worklib.multiplier32FP:v
+		errors: 0, warnings: 0
+TOOL:	xrun(64)	24.09-s001: Exiting on Feb 06, 2025 at 12:17:37 -03  (total: 00:00:00)

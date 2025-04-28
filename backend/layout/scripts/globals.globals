@@ -1,0 +1,12 @@
+set defHierChar {/}
+set delaycal_input_transition_delay {0.1ps}
+set fpIsMaxIoHeight 0
+set init_design_settop 0
+set init_gnd_net $NET_ZERO
+set init_lef_file $LEF_INIT
+set init_mmmc_file ../scripts/${DESIGNS}.view
+set init_oa_search_lib {}
+set init_pwr_net $NET_ONE
+set init_verilog ../../synthesis/deliverables/${DESIGNS}.v
+set lsgOCPGainMult 1.000000
+

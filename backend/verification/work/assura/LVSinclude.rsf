@@ -1,0 +1,10 @@
+; LVS include used for GPDK 45nm LVS
+
+avCompareRules(
+
+  bind( net("*[*]" "*<*>") )
+
+  mergeSplitGate( sameOrder )
+  autoPinSwap(t 3000)
+  expandOnError((pins t) (swap t) (reduce t) (swapThres t))
+)
